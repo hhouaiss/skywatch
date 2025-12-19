@@ -1,0 +1,8 @@
+{
+  "name": "SkyWatch AI - Real-time Plane Spotter",
+  "description": "Identify aircraft flying overhead using your camera and GPS. Powered by live flight data and Gemini AI for visual analysis.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
