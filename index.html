@@ -3,11 +3,18 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#020617">
   <title>SkyWatch AI</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-area-top: env(safe-area-inset-top, 0px);
+    }
     body {
       font-family: 'Inter', sans-serif;
       margin: 0;
@@ -15,11 +22,35 @@
       background-color: #020617;
       color: #f8fafc;
       overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
     }
     #root {
       height: 100vh;
+      height: 100dvh;
       display: flex;
       flex-direction: column;
+    }
+    /* Safe area utilities */
+    .pb-safe { padding-bottom: calc(1rem + var(--safe-area-bottom)); }
+    .pt-safe { padding-top: calc(1rem + var(--safe-area-top)); }
+    
+    /* Capture flash animation */
+    @keyframes capture-flash {
+      0% { opacity: 0; }
+      50% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    .animate-flash {
+      animation: capture-flash 0.3s ease-out;
+    }
+    
+    /* Pulse ring animation */
+    @keyframes pulse-ring {
+      0% { transform: scale(1); opacity: 1; }
+      100% { transform: scale(1.5); opacity: 0; }
+    }
+    .animate-pulse-ring {
+      animation: pulse-ring 1s ease-out infinite;
     }
   </style>
 <script type="importmap">

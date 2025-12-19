@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect, useState } from 'react';
-import { Camera, RefreshCw, Plane, Info, X } from 'lucide-react';
+import { Camera, RefreshCw, Plane, Info, X, ChevronUp, ChevronDown, Gauge, ArrowUp } from 'lucide-react';
 import { Flight, PlaneAnalysis } from '../types';
 
 interface PlaneOverlayProps {
@@ -21,6 +21,8 @@ const PlaneOverlay: React.FC<PlaneOverlayProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [showFlash, setShowFlash] = useState(false);
+  const [showFlightList, setShowFlightList] = useState(false);
 
   useEffect(() => {
     async function startCamera() {
@@ -45,6 +47,15 @@ const PlaneOverlay: React.FC<PlaneOverlayProps> = ({
 
   const handleCapture = () => {
     if (videoRef.current && canvasRef.current) {
+      // Haptic feedback
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+      
+      // Flash effect
+      setShowFlash(true);
+      setTimeout(() => setShowFlash(false), 300);
+
       const video = videoRef.current;
       const canvas = canvasRef.current;
       canvas.width = video.videoWidth;
@@ -58,6 +69,18 @@ const PlaneOverlay: React.FC<PlaneOverlayProps> = ({
     }
   };
 
+  const formatAltitude = (meters: number | null) => {
+    if (!meters) return 'N/A';
+    const feet = Math.round(meters * 3.28084);
+    return `${feet.toLocaleString()} ft`;
+  };
+
+  const formatSpeed = (ms: number | null) => {
+    if (!ms) return 'N/A';
+    const knots = Math.round(ms * 1.94384);
+    return `${knots} kts`;
+  };
+
   return (
     <div className="relative flex-1 bg-black overflow-hidden flex flex-col">
       {/* Video Feed */}
@@ -65,9 +88,15 @@ const PlaneOverlay: React.FC<PlaneOverlayProps> = ({
         ref={videoRef}
         autoPlay
         playsInline
+        muted
         className="absolute inset-0 w-full h-full object-cover"
       />
       <canvas ref={canvasRef} className="hidden" />
+
+      {/* Capture Flash Effect */}
+      {showFlash && (
+        <div className="absolute inset-0 bg-white z-[100] animate-flash pointer-events-none" />
+      )}
 
       {/* AR-style Radar HUD */}
       <div className="absolute inset-0 pointer-events-none border-[1px] border-emerald-500/20 m-4 rounded-3xl">
@@ -76,29 +105,79 @@ const PlaneOverlay: React.FC<PlaneOverlayProps> = ({
         <div className="absolute top-0 left-1/2 w-[1px] h-8 bg-emerald-500/50"></div>
         <div className="absolute bottom-0 left-1/2 w-[1px] h-8 bg-emerald-500/50"></div>
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 border border-emerald-500/30 rounded-full"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 border border-emerald-500/10 rounded-full"></div>
       </div>
 
       {/* Top Info Bar */}
-      <div className="absolute top-6 left-6 right-6 flex justify-between items-start pointer-events-none">
-        <div className="bg-slate-900/80 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 text-xs font-mono">
+      <div className="absolute top-0 left-0 right-0 pt-safe px-4 flex justify-between items-start z-30">
+        <div className="bg-slate-900/80 backdrop-blur-md px-3 py-2 rounded-xl border border-white/10 text-xs font-mono">
           <div className="flex items-center gap-2 text-emerald-400">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            LIVE RADAR ACTIVE
+            LIVE RADAR
           </div>
-          <div className="text-slate-400 mt-1 uppercase">
-            Nearby: {nearbyFlights.length} Tracking
+          <button 
+            onClick={() => setShowFlightList(!showFlightList)}
+            className="flex items-center gap-1 text-slate-400 mt-1 uppercase hover:text-white transition-colors"
+          >
+            Nearby: {nearbyFlights.length}
+            {showFlightList ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          </button>
+        </div>
+
+        {/* Quick Stats for Closest Flight */}
+        {nearbyFlights.length > 0 && !analysis && (
+          <div className="bg-slate-900/80 backdrop-blur-md px-3 py-2 rounded-xl border border-white/10 text-xs font-mono">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1 text-blue-400">
+                <ArrowUp size={12} />
+                {formatAltitude(nearbyFlights[0].baro_altitude)}
+              </div>
+              <div className="flex items-center gap-1 text-amber-400">
+                <Gauge size={12} />
+                {formatSpeed(nearbyFlights[0].velocity)}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Flight List Modal */}
+      {showFlightList && nearbyFlights.length > 0 && (
+        <div className="absolute top-20 left-4 right-4 max-h-[40vh] overflow-y-auto bg-slate-900/95 backdrop-blur-xl rounded-2xl border border-white/10 z-40 animate-in slide-in-from-top-2">
+          <div className="p-3 border-b border-white/10 flex justify-between items-center sticky top-0 bg-slate-900/95">
+            <h3 className="font-bold text-sm">Nearby Aircraft ({nearbyFlights.length})</h3>
+            <button onClick={() => setShowFlightList(false)} className="p-1 hover:bg-white/10 rounded-full">
+              <X size={16} />
+            </button>
+          </div>
+          <div className="divide-y divide-white/5">
+            {nearbyFlights.slice(0, 10).map((flight, idx) => (
+              <div key={flight.icao24} className="p-3 flex items-center gap-3 hover:bg-white/5">
+                <div className={`p-2 rounded-full ${idx === 0 ? 'bg-emerald-500/20' : 'bg-slate-800'}`}>
+                  <Plane className={`${idx === 0 ? 'text-emerald-400' : 'text-slate-400'} rotate-45`} size={16} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold truncate">{flight.callsign || 'Unknown'}</p>
+                  <p className="text-xs text-slate-400">{flight.origin_country}</p>
+                </div>
+                <div className="text-right text-xs">
+                  <p className="text-blue-400">{formatAltitude(flight.baro_altitude)}</p>
+                  <p className="text-slate-400">{flight.distance?.toFixed(1)} km</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
+      )}
 
       {/* Analysis Result Card */}
       {analysis && (
-        <div className="absolute inset-0 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm z-50">
+        <div className="absolute inset-0 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm z-50">
           <div className="bg-slate-900 w-full max-w-sm rounded-3xl border border-white/20 shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
             <div className="relative h-24 bg-gradient-to-r from-blue-600 to-indigo-700 flex items-center justify-center">
               <button 
                 onClick={onClearAnalysis}
-                className="absolute top-3 right-3 p-1 rounded-full bg-black/20 hover:bg-black/40 text-white"
+                className="absolute top-3 right-3 p-2 rounded-full bg-black/20 hover:bg-black/40 text-white active:scale-95 transition-transform"
               >
                 <X size={20} />
               </button>
@@ -106,7 +185,7 @@ const PlaneOverlay: React.FC<PlaneOverlayProps> = ({
               <h2 className="text-xl font-bold text-white z-10">Aircraft Identified</h2>
             </div>
             
-            <div className="p-6 space-y-4">
+            <div className="p-5 space-y-4">
               {analysis.isPlane ? (
                 <>
                   <div className="grid grid-cols-2 gap-4">
@@ -137,14 +216,14 @@ const PlaneOverlay: React.FC<PlaneOverlayProps> = ({
                   </div>
                 </>
               ) : (
-                <div className="text-center py-8">
+                <div className="text-center py-6">
                   <p className="text-slate-400">No clear aircraft detected. Try pointing your camera directly at the flying plane and hold steady.</p>
                 </div>
               )}
               
               <button 
                 onClick={onClearAnalysis}
-                className="w-full bg-blue-600 hover:bg-blue-500 py-3 rounded-xl font-bold transition-colors"
+                className="w-full bg-blue-600 hover:bg-blue-500 active:bg-blue-700 py-3 rounded-xl font-bold transition-colors active:scale-[0.98]"
               >
                 Return to View
               </button>
@@ -153,30 +232,35 @@ const PlaneOverlay: React.FC<PlaneOverlayProps> = ({
         </div>
       )}
 
-      {/* Control Bar */}
-      <div className="absolute bottom-8 left-0 right-0 px-6 flex flex-col gap-6 items-center">
+      {/* Control Bar - Fixed at bottom with safe area support */}
+      <div className="absolute bottom-0 left-0 right-0 pb-safe px-4 flex flex-col gap-4 items-center z-40">
         {/* Nearby Plane Peek */}
         {nearbyFlights.length > 0 && !analysis && (
-          <div className="w-full max-w-xs bg-slate-900/60 backdrop-blur-lg rounded-2xl p-4 border border-white/10 animate-in slide-in-from-bottom-4">
+          <div className="w-full max-w-xs bg-slate-900/80 backdrop-blur-lg rounded-2xl p-3 border border-white/10 animate-in slide-in-from-bottom-4">
              <div className="flex items-center gap-3">
-                <div className="bg-emerald-500/20 p-2 rounded-full">
-                  <Plane className="text-emerald-400 rotate-45" size={20} />
+                <div className="relative">
+                  <div className="bg-emerald-500/20 p-2 rounded-full">
+                    <Plane className="text-emerald-400 rotate-45" size={20} />
+                  </div>
+                  <div className="absolute inset-0 bg-emerald-500/30 rounded-full animate-pulse-ring"></div>
                 </div>
-                <div className="flex-1">
-                  <p className="text-[10px] text-emerald-400/80 uppercase tracking-tighter font-black">Closest Active Transponder</p>
-                  <div className="flex justify-between items-baseline">
-                    <p className="text-lg font-bold">{nearbyFlights[0].callsign}</p>
-                    <p className="text-xs text-slate-300">~{nearbyFlights[0].distance?.toFixed(1)} km</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] text-emerald-400/80 uppercase tracking-tighter font-black">Closest Active</p>
+                  <div className="flex justify-between items-baseline gap-2">
+                    <p className="text-lg font-bold truncate">{nearbyFlights[0].callsign}</p>
+                    <p className="text-xs text-slate-300 shrink-0">~{nearbyFlights[0].distance?.toFixed(1)} km</p>
                   </div>
                 </div>
              </div>
           </div>
         )}
 
-        <div className="flex items-center gap-8">
+        {/* Capture Controls */}
+        <div className="flex items-center justify-center gap-6 pb-2">
            <button 
              onClick={() => window.location.reload()}
-             className="p-4 rounded-full bg-slate-900/60 border border-white/10 text-white hover:bg-slate-800"
+             className="p-4 rounded-full bg-slate-900/80 border border-white/10 text-white hover:bg-slate-800 active:scale-95 transition-transform min-w-[56px] min-h-[56px] flex items-center justify-center"
+             aria-label="Refresh"
            >
              <RefreshCw size={24} />
            </button>
@@ -184,7 +268,8 @@ const PlaneOverlay: React.FC<PlaneOverlayProps> = ({
            <button 
             disabled={isAnalyzing}
             onClick={handleCapture}
-            className={`w-20 h-20 rounded-full border-4 border-white flex items-center justify-center transition-all ${isAnalyzing ? 'bg-slate-600 opacity-50' : 'bg-white hover:scale-110 active:scale-95 shadow-[0_0_30px_rgba(255,255,255,0.3)]'}`}
+            className={`relative w-20 h-20 rounded-full border-4 border-white flex items-center justify-center transition-all min-w-[80px] min-h-[80px] ${isAnalyzing ? 'bg-slate-600 opacity-50' : 'bg-white hover:scale-105 active:scale-95 shadow-[0_0_30px_rgba(255,255,255,0.3)]'}`}
+            aria-label="Capture"
            >
              {isAnalyzing ? (
                <RefreshCw className="text-slate-900 animate-spin" size={32} />
@@ -193,7 +278,8 @@ const PlaneOverlay: React.FC<PlaneOverlayProps> = ({
              )}
            </button>
 
-           <div className="w-14" /> {/* Spacer */}
+           {/* Spacer for symmetry */}
+           <div className="w-14 min-w-[56px]" />
         </div>
       </div>
     </div>
