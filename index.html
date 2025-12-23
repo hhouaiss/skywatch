@@ -7,7 +7,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#020617">
-  <title>SkyWatch AI</title>
+  <title>SkyWatch - Real-time Plane Spotter</title>
+  <meta name="description" content="Spot and identify aircraft in real-time using your camera and live flight data">
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
   <style>
@@ -47,10 +48,124 @@
     /* Pulse ring animation */
     @keyframes pulse-ring {
       0% { transform: scale(1); opacity: 1; }
-      100% { transform: scale(1.5); opacity: 0; }
+      100% { transform: scale(1.8); opacity: 0; }
     }
     .animate-pulse-ring {
-      animation: pulse-ring 1s ease-out infinite;
+      animation: pulse-ring 1.5s ease-out infinite;
+    }
+
+    /* Fade in animation */
+    @keyframes fade-in {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+    .animate-fade-in {
+      animation: fade-in 0.3s ease-out forwards;
+    }
+
+    /* Slide up animation */
+    @keyframes slide-up {
+      0% { 
+        opacity: 0; 
+        transform: translateY(20px); 
+      }
+      100% { 
+        opacity: 1; 
+        transform: translateY(0); 
+      }
+    }
+    .animate-slide-up {
+      animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    /* Slide up with scale */
+    @keyframes slide-up-scale {
+      0% { 
+        opacity: 0; 
+        transform: translateY(40px) scale(0.95); 
+      }
+      100% { 
+        opacity: 1; 
+        transform: translateY(0) scale(1); 
+      }
+    }
+    .animate-slide-up-scale {
+      animation: slide-up-scale 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    /* Slide down animation */
+    @keyframes slide-down {
+      0% { 
+        opacity: 0; 
+        transform: translateY(-20px); 
+      }
+      100% { 
+        opacity: 1; 
+        transform: translateY(0); 
+      }
+    }
+    .animate-slide-down {
+      animation: slide-down 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    /* Stagger fade animation */
+    @keyframes stagger-fade {
+      0% { 
+        opacity: 0; 
+        transform: translateY(10px); 
+      }
+      100% { 
+        opacity: 1; 
+        transform: translateY(0); 
+      }
+    }
+    .animate-stagger {
+      opacity: 0;
+      animation: stagger-fade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    /* Radar pulse animation */
+    @keyframes radar-pulse {
+      0% { 
+        transform: translate(-50%, -50%) scale(1); 
+        opacity: 0.3; 
+      }
+      50% { 
+        transform: translate(-50%, -50%) scale(1.1); 
+        opacity: 0.5; 
+      }
+      100% { 
+        transform: translate(-50%, -50%) scale(1); 
+        opacity: 0.3; 
+      }
+    }
+    .animate-radar-pulse {
+      animation: radar-pulse 2s ease-in-out infinite;
+    }
+
+    /* Success pulse */
+    @keyframes success-pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+    .animate-success-pulse {
+      animation: success-pulse 0.3s ease-out;
+    }
+
+    /* Success ring */
+    @keyframes success-ring {
+      0% { 
+        transform: scale(1); 
+        opacity: 1; 
+      }
+      100% { 
+        transform: scale(1.5); 
+        opacity: 0; 
+      }
+    }
+    .animate-success-ring {
+      animation: success-ring 0.6s ease-out forwards;
     }
   </style>
 <script type="importmap">
@@ -58,7 +173,6 @@
   "imports": {
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
-    "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
     "react/": "https://esm.sh/react@^19.2.3/",
     "react": "https://esm.sh/react@^19.2.3"
   }

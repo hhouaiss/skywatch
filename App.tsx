@@ -2,15 +2,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import PlaneOverlay from './components/PlaneOverlay';
 import { fetchNearbyFlights } from './services/flightService';
-import { analyzePlaneImage } from './services/geminiService';
-import { Flight, UserLocation, PlaneAnalysis } from './types';
+import { Flight, UserLocation } from './types';
 import { Plane, Navigation, ShieldCheck } from 'lucide-react';
 
 const App: React.FC = () => {
   const [location, setLocation] = useState<UserLocation | null>(null);
   const [nearbyFlights, setNearbyFlights] = useState<Flight[]>([]);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysis, setAnalysis] = useState<PlaneAnalysis | null>(null);
+  const [capturedFlight, setCapturedFlight] = useState<Flight | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [permissionGranted, setPermissionGranted] = useState(false);
 
@@ -49,17 +47,16 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [location]);
 
-  const handleCapture = useCallback(async (base64Image: string) => {
-    setIsAnalyzing(true);
-    try {
-      const result = await analyzePlaneImage(base64Image);
-      setAnalysis(result);
-    } catch (err) {
-      console.error("Analysis Error:", err);
-    } finally {
-      setIsAnalyzing(false);
+  const handleCapture = useCallback(() => {
+    // When user captures, select the nearest flight
+    if (nearbyFlights.length > 0) {
+      setCapturedFlight(nearbyFlights[0]);
+      // Haptic feedback
+      if (navigator.vibrate) {
+        navigator.vibrate([50, 50, 100]);
+      }
     }
-  }, []);
+  }, [nearbyFlights]);
 
   if (error) {
     return (
@@ -68,8 +65,8 @@ const App: React.FC = () => {
           <ShieldCheck size={64} className="text-red-500" />
         </div>
         <h1 className="text-2xl font-bold">Access Required</h1>
-        <p className="text-slate-400 max-w-xs">{error}. Please enable camera and location permissions in your browser settings to use SkyWatch AI.</p>
-        <button 
+        <p className="text-slate-400 max-w-xs">{error}. Please enable camera and location permissions in your browser settings to use SkyWatch.</p>
+        <button
           onClick={() => window.location.reload()}
           className="bg-blue-600 px-8 py-3 rounded-xl font-bold hover:bg-blue-500"
         >
@@ -87,7 +84,7 @@ const App: React.FC = () => {
           <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-12 h-2 bg-blue-900/40 rounded-full blur-sm" />
         </div>
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-black tracking-tighter">SKYWATCH <span className="text-blue-500">AI</span></h1>
+          <h1 className="text-3xl font-black tracking-tighter">SKYWATCH</h1>
           <p className="text-slate-400 animate-pulse">Initializing Flight Systems...</p>
         </div>
         <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-900 px-4 py-2 rounded-full border border-white/5">
@@ -100,12 +97,11 @@ const App: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col relative">
-      <PlaneOverlay 
+      <PlaneOverlay
         onCapture={handleCapture}
         nearbyFlights={nearbyFlights}
-        isAnalyzing={isAnalyzing}
-        analysis={analysis}
-        onClearAnalysis={() => setAnalysis(null)}
+        capturedFlight={capturedFlight}
+        onClearCapture={() => setCapturedFlight(null)}
       />
     </div>
   );
