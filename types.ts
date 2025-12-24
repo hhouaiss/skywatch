@@ -9,7 +9,20 @@ export interface Flight {
   velocity: number;
   true_track: number;
   on_ground: boolean;
-  distance?: number; // Calculated distance from user
+  distance?: number;
+  isOverhead?: boolean; // true if within 0.2-0.9km (capturable)
+}
+
+export interface FlightRoute {
+  departureAirport?: AirportInfo;
+  arrivalAirport?: AirportInfo;
+}
+
+export interface AirportInfo {
+  icao: string;
+  name: string;
+  city: string;
+  country: string;
 }
 
 export interface UserLocation {

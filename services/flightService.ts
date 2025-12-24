@@ -1,7 +1,13 @@
 
-import { Flight, UserLocation } from '../types';
+import { Flight, FlightRoute, UserLocation } from '../types';
+import { getAirportInfo } from './airportService';
 
 const OPENSKY_URL = 'https://opensky-network.org/api/states/all';
+const OPENSKY_FLIGHTS_URL = 'https://opensky-network.org/api/flights/aircraft';
+
+// Distance thresholds in km
+const OVERHEAD_MIN_DISTANCE = 0.2; // Minimum distance to be considered overhead
+const OVERHEAD_MAX_DISTANCE = 0.9; // Maximum distance to be considered overhead (capturable)
 
 /**
  * OpenSky state vector mapping:
@@ -51,14 +57,77 @@ export const fetchNearbyFlights = async (location: UserLocation): Promise<Flight
       on_ground: s[8],
     }));
 
-    // Calculate distance and sort
-    return flights.map(f => ({
-      ...f,
-      distance: calculateDistance(location.latitude, location.longitude, f.latitude, f.longitude)
-    })).sort((a, b) => (a.distance || 0) - (b.distance || 0));
+    // Calculate distance, mark overhead status, and sort
+    return flights.map(f => {
+      const distance = calculateDistance(location.latitude, location.longitude, f.latitude, f.longitude);
+      return {
+        ...f,
+        distance,
+        isOverhead: distance >= OVERHEAD_MIN_DISTANCE && distance <= OVERHEAD_MAX_DISTANCE && !f.on_ground
+      };
+    }).sort((a, b) => (a.distance || 0) - (b.distance || 0));
   } catch (error) {
     console.error('Error fetching flights:', error);
     return [];
+  }
+};
+
+/**
+ * Get overhead flights only (0.2-0.9 km range, not on ground)
+ */
+export const getOverheadFlights = (flights: Flight[]): Flight[] => {
+  return flights.filter(f => f.isOverhead);
+};
+
+/**
+ * Fetch flight route information (departure/arrival airports)
+ * Uses OpenSky's flights/aircraft endpoint to get recent flight data
+ */
+export const fetchFlightRoute = async (icao24: string): Promise<FlightRoute> => {
+  const now = Math.floor(Date.now() / 1000);
+  const begin = now - 86400; // Last 24 hours
+
+  try {
+    const response = await fetch(`${OPENSKY_FLIGHTS_URL}?icao24=${icao24.toLowerCase()}&begin=${begin}&end=${now}`);
+
+    if (!response.ok) {
+      console.log('Flight route API returned non-OK status');
+      return {};
+    }
+
+    const flights = await response.json();
+
+    if (!flights || flights.length === 0) {
+      return {};
+    }
+
+    // Get the most recent flight
+    const latestFlight = flights[flights.length - 1];
+
+    const route: FlightRoute = {};
+
+    if (latestFlight.estDepartureAirport) {
+      route.departureAirport = getAirportInfo(latestFlight.estDepartureAirport) || {
+        icao: latestFlight.estDepartureAirport,
+        name: 'Unknown Airport',
+        city: latestFlight.estDepartureAirport,
+        country: ''
+      };
+    }
+
+    if (latestFlight.estArrivalAirport) {
+      route.arrivalAirport = getAirportInfo(latestFlight.estArrivalAirport) || {
+        icao: latestFlight.estArrivalAirport,
+        name: 'Unknown Airport',
+        city: latestFlight.estArrivalAirport,
+        country: ''
+      };
+    }
+
+    return route;
+  } catch (error) {
+    console.error('Error fetching flight route:', error);
+    return {};
   }
 };
 

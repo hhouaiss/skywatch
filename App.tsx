@@ -1,14 +1,17 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import PlaneOverlay from './components/PlaneOverlay';
-import { fetchNearbyFlights } from './services/flightService';
-import { Flight, UserLocation } from './types';
+import { fetchNearbyFlights, getOverheadFlights, fetchFlightRoute } from './services/flightService';
+import { Flight, FlightRoute, UserLocation } from './types';
 import { Plane, Navigation, ShieldCheck } from 'lucide-react';
 
 const App: React.FC = () => {
   const [location, setLocation] = useState<UserLocation | null>(null);
   const [nearbyFlights, setNearbyFlights] = useState<Flight[]>([]);
+  const [overheadFlights, setOverheadFlights] = useState<Flight[]>([]);
   const [capturedFlight, setCapturedFlight] = useState<Flight | null>(null);
+  const [capturedRoute, setCapturedRoute] = useState<FlightRoute | null>(null);
+  const [isLoadingRoute, setIsLoadingRoute] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [permissionGranted, setPermissionGranted] = useState(false);
 
@@ -40,6 +43,7 @@ const App: React.FC = () => {
     const getFlights = async () => {
       const flights = await fetchNearbyFlights(location);
       setNearbyFlights(flights);
+      setOverheadFlights(getOverheadFlights(flights));
     };
 
     getFlights();
@@ -47,16 +51,35 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [location]);
 
-  const handleCapture = useCallback(() => {
-    // When user captures, select the nearest flight
-    if (nearbyFlights.length > 0) {
-      setCapturedFlight(nearbyFlights[0]);
+  const handleCapture = useCallback(async () => {
+    // When user captures, select from overhead flights only
+    if (overheadFlights.length > 0) {
+      const captured = overheadFlights[0];
+      setCapturedFlight(captured);
+      setCapturedRoute(null);
+
       // Haptic feedback
       if (navigator.vibrate) {
         navigator.vibrate([50, 50, 100]);
       }
+
+      // Fetch route info in background
+      setIsLoadingRoute(true);
+      try {
+        const route = await fetchFlightRoute(captured.icao24);
+        setCapturedRoute(route);
+      } catch (err) {
+        console.error('Failed to fetch route:', err);
+      } finally {
+        setIsLoadingRoute(false);
+      }
     }
-  }, [nearbyFlights]);
+  }, [overheadFlights]);
+
+  const handleClearCapture = () => {
+    setCapturedFlight(null);
+    setCapturedRoute(null);
+  };
 
   if (error) {
     return (
@@ -100,8 +123,11 @@ const App: React.FC = () => {
       <PlaneOverlay
         onCapture={handleCapture}
         nearbyFlights={nearbyFlights}
+        overheadFlights={overheadFlights}
         capturedFlight={capturedFlight}
-        onClearCapture={() => setCapturedFlight(null)}
+        capturedRoute={capturedRoute}
+        isLoadingRoute={isLoadingRoute}
+        onClearCapture={handleClearCapture}
       />
     </div>
   );
